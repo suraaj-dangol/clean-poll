@@ -96,11 +96,19 @@
     background: linear-gradient(to left, rgba(255,255,255,1), rgba(255,255,255,0));
     pointer-events: none;
   }
+    html, body {
+  width: 100%;
+  overflow-x: hidden;
+}
+* {
+  box-sizing: border-box;
+}
+
 </style>
 
   </style>
 </head>
-<body class="bg-gray-100 min-h-screen overflow-x-hidden text-[#704535] p-4 flex flex-col items-center">
+<body class="bg-gray-100 min-h-screen w-screen overflow-x-hidden text-[#704535] p-4 flex flex-col items-center">
   <!-- ✅ Hero Section Start -->
 <section class="w-screen min-h-[85vh] bg-gradient-to-br from-[#0076CE] to-[#4F7942] flex items-center justify-center px-6 py-12 text-center">
   <div class="max-w-xl">
