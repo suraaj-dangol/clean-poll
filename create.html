@@ -45,6 +45,25 @@
     input[type="number"] {
       max-width: 6rem;
     }
+    #previewModal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.5);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 50;
+    }
+    #previewContent {
+      background: white;
+      border-radius: 0.5rem;
+      max-width: 32rem;
+      width: 90%;
+      padding: 2rem;
+    }
   </style>
 </head>
 <body class="bg-gray-100 min-h-screen text-[#704535]">
@@ -55,11 +74,10 @@
     <form class="space-y-6">
       <div>
         <label class="block font-semibold mb-1">Title</label>
-        <input type="text" placeholder="Type your question here" class="w-full p-3 border border-gray-300 rounded-md">
+        <input type="text" placeholder="Type your question here" class="w-full p-3 border border-gray-300 rounded-md" id="pollTitle">
       </div>
 
       <div class="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
-
         <div class="w-full">
           <label class="block font-semibold mb-1">Answer Options</label>
           <div id="options-container" class="space-y-2">
@@ -117,11 +135,25 @@
         </div>
       </div>
 
-      <div class="text-center mt-8">
+      <div class="text-center mt-8 flex justify-center gap-4">
+        <button type="button" onclick="showPreview()" class="bg-white text-[#4F7942] font-semibold px-6 py-3 border border-[#4F7942] rounded-lg hover:bg-gray-50 transition">Preview Poll</button>
         <button type="submit" class="bg-[#4F7942] text-white font-semibold px-6 py-3 rounded-lg hover:bg-[#3e6134] transition">Create Poll</button>
       </div>
     </form>
   </div>
+
+  <!-- Preview Modal -->
+  <div id="previewModal" class="hidden fixed inset-0 flex items-center justify-center">
+    <div id="previewContent" class="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
+      <h2 class="text-2xl font-bold mb-4 text-[#704535]">Preview Poll</h2>
+      <div id="previewDetails" class="text-[#333]"></div>
+      <div class="mt-6 flex justify-end gap-4">
+        <button onclick="closePreview()" class="px-4 py-2 border border-gray-400 rounded-md text-gray-700 hover:bg-gray-100">Back</button>
+        <button class="px-4 py-2 bg-[#4F7942] text-white rounded-md hover:bg-[#3e6134]">Confirm</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     function addOption() {
       const container = document.getElementById("options-container");
@@ -136,6 +168,18 @@
       `;
       container.appendChild(wrapper);
       requestAnimationFrame(() => wrapper.classList.add('show'));
+    }
+
+    function showPreview() {
+      const title = document.getElementById("pollTitle").value;
+      const options = [...document.querySelectorAll("#options-container input[type='text']")].map(input => `<li>${input.value}</li>`).join('');
+      const preview = document.getElementById("previewDetails");
+      preview.innerHTML = `<h3 class='text-xl font-semibold mb-2'>${title}</h3><ul class='list-disc ml-6'>${options}</ul>`;
+      document.getElementById("previewModal").classList.remove("hidden");
+    }
+
+    function closePreview() {
+      document.getElementById("previewModal").classList.add("hidden");
     }
   </script>
 </body>
