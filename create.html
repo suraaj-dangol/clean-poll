@@ -197,7 +197,36 @@
     preview.innerHTML = `<h3 class='text-xl font-semibold mb-2'>${title}</h3><ul class='list-disc ml-6'>${optionsHTML}</ul>`;
     document.getElementById("previewModal").classList.remove("hidden");
   }
-</script>
+function createPoll(event) {
+  event.preventDefault();
+
+  const title = document.getElementById("pollTitle").value;
+  const maxVote = parseInt(document.getElementById("maxVote").value) || 1;
+  const options = [];
+
+  const rows = document.querySelectorAll("#options-container .input-with-icon");
+  rows.forEach(row => {
+    const text = row.querySelector("input[type='text']").value;
+    options.push({ text, votes: 0 });
+  });
+
+  if (!title || options.length < 2) {
+    alert("Please enter a title and at least two options.");
+    return;
+  }
+
+  db.collection("polls").add({
+    question: title,
+    options,
+    maxVote
+  }).then(docRef => {
+    window.location.href = `vote.html?poll=${docRef.id}`;
+  }).catch(error => {
+    console.error("Error creating poll: ", error);
+    alert("Failed to create poll.");
+  });
+}
+
 
   </script>
 </body>
