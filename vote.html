@@ -8,118 +8,185 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
   <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
-  <script src="firebase.js"></script>
-  <style>
-    body { font-family: 'Inter', sans-serif; }
-    .checkmark, .radiomark { accent-color: #4F7942; }
-    .thank-you { display: none; }
-  </style>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
-<body class="bg-gray-100 min-h-screen text-[#704535]">
-  <div class="max-w-2xl mx-auto p-6">
-    <h1 class="text-3xl font-bold text-center mb-4">Vote on Poll</h1>
-    <h2 id="pollTitle" class="text-xl font-semibold text-center mb-6">Loading poll...</h2>
-
-    <form id="voteForm" class="space-y-4 hidden"></form>
-
-    <div class="text-center mt-6">
-      <button id="submitBtn" class="bg-[#4F7942] text-white px-6 py-3 rounded-lg hover:bg-[#3e6134] transition hidden">
-        Submit Vote
-      </button>
+<body class="bg-gray-100 text-[#704535] font-inter">
+  <div class="max-w-3xl mx-auto p-4">
+    <h1 id="poll-title" class="text-2xl font-bold mb-4 text-center">Loading poll...</h1>
+    <form id="vote-form" class="space-y-4 hidden"></form>
+    <div id="name-field" class="mb-4 hidden">
+      <label class="block text-sm font-medium">Your Name:</label>
+      <input id="voterName" class="w-full border border-gray-300 rounded p-2" type="text" placeholder="Enter your name">
     </div>
+    <button id="submitVote" class="bg-[#4F7942] text-white font-semibold px-4 py-2 rounded hover:bg-[#3e6134] hidden">Submit Vote</button>
 
-    <div id="thankYouMessage" class="thank-you text-center mt-8">
-      <h3 class="text-xl font-semibold text-[#4F7942]">Thank you for voting!</h3>
+    <div id="thankYou" class="mt-6 hidden text-center font-semibold text-green-700">Thank you for voting!</div>
+    <div id="resultsSection" class="mt-6 hidden">
+      <canvas id="resultsChart"></canvas>
     </div>
-
-    <div id="liveResults" class="hidden mt-8">
-      <h3 class="text-lg font-semibold mb-2">Live Results</h3>
-      <div id="resultsList" class="space-y-2"></div>
+    <div id="commentBox" class="mt-6 hidden">
+      <label class="block text-sm font-medium">Leave a comment:</label>
+      <textarea id="commentInput" class="w-full border p-2 rounded mt-2"></textarea>
+      <button onclick="submitComment()" class="mt-2 bg-[#4F7942] text-white px-4 py-1 rounded hover:bg-[#3e6134]">Submit Comment</button>
+    </div>
+    <div id="feedbackWall" class="mt-6 hidden">
+      <h2 class="text-xl font-semibold mb-2">Feedback</h2>
+      <ul id="commentsList" class="space-y-2"></ul>
     </div>
   </div>
 
   <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBaYtVWWHSjcJWpkRfSlmKDAA1jF8exOVY",
+      authDomain: "quick-vote-tally.firebaseapp.com",
+      projectId: "quick-vote-tally",
+      storageBucket: "quick-vote-tally.appspot.com",
+      messagingSenderId: "42570695803",
+      appId: "1:42570695803:web:597ff9601da5d3e29dcede"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
     const urlParams = new URLSearchParams(window.location.search);
     const pollId = urlParams.get('poll');
-    const pollTitle = document.getElementById('pollTitle');
-    const voteForm = document.getElementById('voteForm');
-    const thankYou = document.getElementById('thankYouMessage');
-    const liveResults = document.getElementById('liveResults');
-    const resultsList = document.getElementById('resultsList');
-    const submitBtn = document.getElementById('submitBtn');
+    let pollData;
+    let selected = [];
 
-    let allowMultiple = false;
-    let options = [];
+    const pollTitle = document.getElementById('poll-title');
+    const voteForm = document.getElementById('vote-form');
+    const submitBtn = document.getElementById('submitVote');
+    const thankYou = document.getElementById('thankYou');
 
-    async function loadPoll() {
-      const doc = await db.collection("polls").doc(pollId).get();
-      if (!doc.exists) {
-        pollTitle.innerText = "Poll not found";
+    db.collection("polls").doc(pollId).get().then(doc => {
+      if (!doc.exists) return pollTitle.textContent = "Poll not found.";
+      pollData = doc.data();
+      const now = new Date();
+      if (pollData.expiresAt && now > new Date(pollData.expiresAt)) {
+        pollTitle.textContent += " (Poll Closed)";
         return;
       }
-      const poll = doc.data();
-      pollTitle.innerText = poll.question;
-      allowMultiple = poll.maxVote && poll.maxVote > 1;
-      options = poll.options;
 
-      poll.options.forEach((opt, i) => {
-        const wrapper = document.createElement('label');
-        wrapper.className = "flex items-center gap-4 bg-white p-3 rounded-lg shadow w-full";
+      pollTitle.textContent = pollData.question;
+      voteForm.classList.remove("hidden");
 
-        const input = document.createElement('input');
-        input.type = allowMultiple ? 'checkbox' : 'radio';
-        input.name = 'option';
+      if (pollData.requireName) document.getElementById("name-field").classList.remove("hidden");
+
+      pollData.options.forEach((opt, i) => {
+        const wrapper = document.createElement("div");
+        wrapper.className = "flex items-center gap-2";
+
+        const input = document.createElement("input");
+        input.type = pollData.maxVote > 1 ? "checkbox" : "radio";
+        input.name = "option";
         input.value = i;
-        input.className = allowMultiple ? 'checkmark' : 'radiomark';
+        input.onclick = () => handleSelect(input);
 
-        const text = document.createElement('span');
-        text.innerText = opt.text;
+        const label = document.createElement("label");
+        label.textContent = opt.text;
 
         wrapper.appendChild(input);
-        wrapper.appendChild(text);
+        wrapper.appendChild(label);
         voteForm.appendChild(wrapper);
       });
 
-      voteForm.classList.remove('hidden');
-      submitBtn.classList.remove('hidden');
-    }
+      submitBtn.classList.remove("hidden");
 
-    loadPoll();
+      if (pollData.resultVisibility === 'always') {
+        showResults();
+      }
 
-    submitBtn.addEventListener('click', async (e) => {
-      e.preventDefault();
-      const inputs = [...document.querySelectorAll('input[name="option"]')];
-      const selected = inputs.filter(input => input.checked);
-
-      if (selected.length === 0) return alert('Please select at least one option.');
-      if (!allowMultiple && selected.length > 1) return alert('You can only vote for one option.');
-
-      const pollRef = db.collection("polls").doc(pollId);
-      const pollDoc = await pollRef.get();
-      const pollData = pollDoc.data();
-
-      selected.forEach(input => {
-        const idx = parseInt(input.value);
-        pollData.options[idx].votes = (pollData.options[idx].votes || 0) + 1;
-      });
-
-      await pollRef.update({ options: pollData.options });
-
-      voteForm.remove();
-      submitBtn.remove();
-      thankYou.style.display = 'block';
-      showResults(pollData.options);
+      if (pollData.allowComments) {
+        document.getElementById("commentBox").classList.remove("hidden");
+        loadComments();
+      }
     });
 
-    function showResults(options) {
-      liveResults.classList.remove('hidden');
-      const totalVotes = options.reduce((sum, o) => sum + (o.votes || 0), 0);
-      resultsList.innerHTML = options.map(opt => {
-        const pct = totalVotes ? Math.round(((opt.votes || 0) / totalVotes) * 100) : 0;
-        return `<div class='flex justify-between'><span>${opt.text}</span><span>${pct}%</span></div>`;
-      }).join('');
+    function handleSelect(input) {
+      const max = pollData.maxVote;
+      if (pollData.maxVote === 1) return;
+      const checkboxes = [...document.querySelectorAll('input[type="checkbox"]')];
+      const selectedCount = checkboxes.filter(cb => cb.checked).length;
+      if (selectedCount > max) {
+        input.checked = false;
+        alert(`You can select up to ${max} options.`);
+      }
+    }
+
+    submitBtn.onclick = async () => {
+      const name = document.getElementById("voterName")?.value;
+      if (pollData.requireName && !name) return alert("Name is required.");
+
+      const selectedIndexes = [...voteForm.querySelectorAll('input:checked')].map(input => parseInt(input.value));
+      if (!selectedIndexes.length) return alert("Please select an option.");
+
+      const docRef = db.collection("polls").doc(pollId);
+      const doc = await docRef.get();
+      const data = doc.data();
+      const options = data.options;
+
+      selectedIndexes.forEach(i => options[i].votes++);
+      await docRef.update({ options });
+
+      if (pollData.allowComments) document.getElementById("commentBox").classList.remove("hidden");
+
+      thankYou.classList.remove("hidden");
+      voteForm.classList.add("hidden");
+      submitBtn.classList.add("hidden");
+
+      if (["always", "afterVote"].includes(pollData.resultVisibility)) {
+        showResults();
+      }
+    };
+
+    function showResults() {
+      const chartDiv = document.getElementById("resultsSection");
+      chartDiv.classList.remove("hidden");
+
+      db.collection("polls").doc(pollId).get().then(doc => {
+        const options = doc.data().options;
+        const labels = options.map(o => o.text);
+        const votes = options.map(o => o.votes);
+
+        new Chart(document.getElementById("resultsChart"), {
+          type: 'bar',
+          data: {
+            labels,
+            datasets: [{
+              label: "Votes",
+              data: votes
+            }]
+          }
+        });
+      });
+    }
+
+    function submitComment() {
+      const text = document.getElementById("commentInput").value;
+      if (!text) return alert("Comment cannot be empty");
+      db.collection("polls").doc(pollId).collection("comments").add({
+        text,
+        createdAt: new Date().toISOString()
+      }).then(() => {
+        document.getElementById("commentInput").value = "";
+        loadComments();
+      });
+    }
+
+    function loadComments() {
+      const list = document.getElementById("commentsList");
+      const wall = document.getElementById("feedbackWall");
+      list.innerHTML = "";
+      wall.classList.remove("hidden");
+
+      db.collection("polls").doc(pollId).collection("comments").orderBy("createdAt", "desc").get().then(snapshot => {
+        snapshot.forEach(doc => {
+          const li = document.createElement("li");
+          li.className = "border p-2 rounded bg-white";
+          li.textContent = doc.data().text;
+          list.appendChild(li);
+        });
+      });
     }
   </script>
 </body>
 </html>
-
