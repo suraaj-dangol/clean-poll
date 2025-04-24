@@ -1,1 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vote - FreeFastPoll</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
+  <script src="firebase.js"></script>
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    .checkmark, .radiomark { accent-color: #4F7942; }
+    .thank-you { display: none; }
+  </style>
+</head>
+<body class="bg-gray-100 min-h-screen text-[#704535]">
+  <div class="max-w-2xl mx-auto p-6">
+    <h1 class="text-3xl font-bold text-center mb-4">Vote on Poll</h1>
+    <h2 id="pollTitle" class="text-xl font-semibold text-center mb-6">Loading poll...</h2>
+
+    <form id="voteForm" class="space-y-4 hidden"></form>
+
+    <div class="text-center mt-6">
+      <button id="submitBtn" class="bg-[#4F7942] text-white px-6 py-3 rounded-lg hover:bg-[#3e6134] transition hidden">
+        Submit Vote
+      </button>
+    </div>
+
+    <div id="thankYouMessage" class="thank-you text-center mt-8">
+      <h3 class="text-xl font-semibold text-[#4F7942]">Thank you for voting!</h3>
+    </div>
+
+    <div id="liveResults" class="hidden mt-8">
+      <h3 class="text-lg font-semibold mb-2">Live Results</h3>
+      <div id="resultsList" class="space-y-2"></div>
+    </div>
+  </div>
+
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const pollId = urlParams.get('poll');
+    const pollTitle = document.getElementById('pollTitle');
+    const voteForm = document.getElementById('voteForm');
+    const thankYou = document.getElementById('thankYouMessage');
+    const liveResults = document.getElementById('liveResults');
+    const resultsList = document.getElementById('resultsList');
+    const submitBtn = document.getElementById('submitBtn');
+
+    let allowMultiple = false;
+    let options = [];
+
+    async function loadPoll() {
+      const doc = await db.collection("polls").doc(pollId).get();
+      if (!doc.exists) {
+        pollTitle.innerText = "Poll not found";
+        return;
+      }
+      const poll = doc.data();
+      pollTitle.innerText = poll.question;
+      allowMultiple = poll.maxVote && poll.maxVote > 1;
+      options = poll.options;
+
+      poll.options.forEach((opt, i) => {
+        const wrapper = document.createElement('label');
+        wrapper.className = "flex items-center gap-4 bg-white p-3 rounded-lg shadow w-full";
+
+        const input = document.createElement('input');
+        input.type = allowMultiple ? 'checkbox' : 'radio';
+        input.name = 'option';
+        input.value = i;
+        input.className = allowMultiple ? 'checkmark' : 'radiomark';
+
+        const text = document.createElement('span');
+        text.innerText = opt.text;
+
+        wrapper.appendChild(input);
+        wrapper.appendChild(text);
+        voteForm.appendChild(wrapper);
+      });
+
+      voteForm.classList.remove('hidden');
+      submitBtn.classList.remove('hidden');
+    }
+
+    loadPoll();
+
+    submitBtn.addEventListener('click', async (e) => {
+      e.preventDefault();
+      const inputs = [...document.querySelectorAll('input[name="option"]')];
+      const selected = inputs.filter(input => input.checked);
+
+      if (selected.length === 0) return alert('Please select at least one option.');
+      if (!allowMultiple && selected.length > 1) return alert('You can only vote for one option.');
+
+      const pollRef = db.collection("polls").doc(pollId);
+      const pollDoc = await pollRef.get();
+      const pollData = pollDoc.data();
+
+      selected.forEach(input => {
+        const idx = parseInt(input.value);
+        pollData.options[idx].votes = (pollData.options[idx].votes || 0) + 1;
+      });
+
+      await pollRef.update({ options: pollData.options });
+
+      voteForm.remove();
+      submitBtn.remove();
+      thankYou.style.display = 'block';
+      showResults(pollData.options);
+    });
+
+    function showResults(options) {
+      liveResults.classList.remove('hidden');
+      const totalVotes = options.reduce((sum, o) => sum + (o.votes || 0), 0);
+      resultsList.innerHTML = options.map(opt => {
+        const pct = totalVotes ? Math.round(((opt.votes || 0) / totalVotes) * 100) : 0;
+        return `<div class='flex justify-between'><span>${opt.text}</span><span>${pct}%</span></div>`;
+      }).join('');
+    }
+  </script>
+</body>
+</html>
 
