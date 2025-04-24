@@ -1,4 +1,4 @@
-<!-- Full Create Poll Page with Settings Restored -->
+<!-- Final Create Poll with Preview Modal Included -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -7,6 +7,8 @@
   <title>Create a Poll - FreeFastPoll</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
   <style>
     body {
       font-family: 'Inter', sans-serif;
@@ -52,9 +54,6 @@
     .image-icon-input::-webkit-file-upload-button {
       display: none;
     }
-    .image-icon-input::before {
-      content: '';
-    }
     input[type="number"] {
       max-width: 6rem;
     }
@@ -85,11 +84,13 @@
     <p class="text-center mb-8 text-gray-600">Complete the below fields to create your poll.</p>
 
     <form class="space-y-6" onsubmit="createPoll(event)">
+      <!-- Title -->
       <div>
         <label class="block font-semibold mb-1">Title</label>
         <input type="text" placeholder="Type your question here" class="w-full p-3 border border-gray-300 rounded-md" id="pollTitle">
       </div>
 
+      <!-- Options -->
       <div>
         <label class="block font-semibold mb-1">Answer Options</label>
         <div id="options-container" class="space-y-2">
@@ -113,37 +114,39 @@
         </div>
       </div>
 
+      <!-- Settings -->
       <div class="border-t pt-6">
         <h2 class="text-xl font-semibold mb-2">Settings</h2>
         <div class="flex flex-wrap gap-6">
           <label class="flex items-center gap-2">
-            <input type="checkbox" class="accent-[#4F7942]"> Allow selection of multiple options
+            <input id="allowMultiple" type="checkbox" class="accent-[#4F7942]"> Allow selection of multiple options
           </label>
           <label class="flex items-center gap-2">
-            <input type="checkbox" class="accent-[#4F7942]"> Require participant names
+            <input id="requireName" type="checkbox" class="accent-[#4F7942]"> Require participant names
           </label>
           <label class="flex items-center gap-2">
-            <input type="checkbox" class="accent-[#4F7942]"> One vote per device
+            <input id="oneVotePerDevice" type="checkbox" class="accent-[#4F7942]"> One vote per device
           </label>
           <label class="flex items-center gap-2">
-            <input type="checkbox" class="accent-[#4F7942]"> Allow comments
+            <input id="allowComments" type="checkbox" class="accent-[#4F7942]"> Allow comments
           </label>
         </div>
         <div class="mt-4">
           <label class="block font-semibold mb-1">Close poll on a specific date</label>
-          <input type="date" class="p-2 border border-gray-300 rounded-md">
+          <input id="endDate" type="date" class="p-2 border border-gray-300 rounded-md">
           <div class="mt-4">
             <label class="block font-semibold mb-1">Results visibility</label>
-            <select class="p-2 border border-gray-300 rounded-md w-full">
-              <option>Always public</option>
-              <option>Public after end date</option>
-              <option>Public after vote</option>
-              <option>Not public</option>
+            <select id="resultVisibility" class="p-2 border border-gray-300 rounded-md w-full">
+              <option value="always">Always public</option>
+              <option value="afterEnd">Public after end date</option>
+              <option value="afterVote">Public after vote</option>
+              <option value="hidden">Not public</option>
             </select>
           </div>
         </div>
       </div>
 
+      <!-- Buttons -->
       <div class="text-center mt-8 flex justify-center gap-4">
         <button type="button" onclick="showPreview()" class="bg-white text-[#4F7942] font-semibold px-6 py-3 border border-[#4F7942] rounded-lg hover:bg-gray-50 transition">Preview Poll</button>
         <button type="submit" class="bg-[#4F7942] text-white font-semibold px-6 py-3 rounded-lg hover:bg-[#3e6134] transition">Create Poll</button>
@@ -152,7 +155,7 @@
   </div>
 
   <!-- Preview Modal -->
-  <div id="previewModal" class="fixed inset-0 flex items-center justify-center">
+  <div id="previewModal" class="fixed inset-0 flex items-center justify-center hidden">
     <div id="previewContent" class="bg-white p-6 rounded-lg shadow-lg max-w-md w-full">
       <h2 class="text-2xl font-bold mb-4 text-[#704535]">Preview Poll</h2>
       <div id="previewDetails" class="text-[#333]"></div>
@@ -163,6 +166,17 @@
   </div>
 
   <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBaYtVWWHSjcJWpkRfSlmKDAA1jF8exOVY",
+      authDomain: "quick-vote-tally.firebaseapp.com",
+      projectId: "quick-vote-tally",
+      storageBucket: "quick-vote-tally.appspot.com",
+      messagingSenderId: "42570695803",
+      appId: "1:42570695803:web:597ff9601da5d3e29dcede"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
     function addOption() {
       const container = document.getElementById("options-container");
       const optionCount = container.querySelectorAll(".input-with-icon").length + 1;
@@ -174,7 +188,6 @@
         <button type="button" class="remove-btn" onclick="this.parentElement.remove()">&#10005;</button>
       `;
       container.appendChild(wrapper);
-      requestAnimationFrame(() => wrapper.classList.add('show'));
     }
 
     function showPreview() {
@@ -195,30 +208,21 @@
     function closePreview() {
       document.getElementById("previewModal").style.display = "none";
     }
-  </script>
-
-  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
-  <script>
-    const firebaseConfig = {
-      apiKey: "AIzaSyBaYtVWWHSjcJWpkRfSlmKDAA1jF8exOVY",
-      authDomain: "quick-vote-tally.firebaseapp.com",
-      projectId: "quick-vote-tally",
-      storageBucket: "quick-vote-tally.appspot.com",
-      messagingSenderId: "42570695803",
-      appId: "1:42570695803:web:597ff9601da5d3e29dcede"
-    };
-
-    const app = firebase.initializeApp(firebaseConfig);
-    const db = firebase.firestore();
 
     function createPoll(event) {
       event.preventDefault();
 
       const title = document.getElementById("pollTitle").value;
       const maxVote = parseInt(document.getElementById("maxVote").value) || 1;
-      const options = [];
+      const allowMultiple = document.getElementById("allowMultiple").checked;
+      const requireName = document.getElementById("requireName").checked;
+      const oneVotePerDevice = document.getElementById("oneVotePerDevice").checked;
+      const allowComments = document.getElementById("allowComments").checked;
+      const resultVisibility = document.getElementById("resultVisibility").value;
+      const expiresAtInput = document.getElementById("endDate").value;
+      const expiresAt = expiresAtInput ? new Date(expiresAtInput).toISOString() : null;
 
+      const options = [];
       const rows = document.querySelectorAll("#options-container .input-with-icon");
       rows.forEach(row => {
         const text = row.querySelector("input[type='text']").value;
@@ -233,7 +237,13 @@
       db.collection("polls").add({
         question: title,
         options,
-        maxVote
+        maxVote,
+        allowMultiple,
+        requireName,
+        oneVotePerDevice,
+        allowComments,
+        resultVisibility,
+        expiresAt
       }).then(docRef => {
         window.location.href = `vote.html?poll=${docRef.id}`;
       }).catch(error => {
