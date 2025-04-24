@@ -10,6 +10,14 @@
     body {
       font-family: 'Inter', sans-serif;
     }
+    .remove-btn {
+      color: #704535;
+      border: 1px solid #704535;
+      border-radius: 4px;
+      padding: 0.25rem 0.5rem;
+      font-weight: bold;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body class="bg-gray-100 min-h-screen text-[#704535]">
@@ -23,28 +31,24 @@
         <input type="text" placeholder="Type your question here" class="w-full p-3 border border-gray-300 rounded-md">
       </div>
 
-      <div>
-        <button type="button" class="text-sm text-blue-600 hover:underline">+ Add description or image</button>
-      </div>
-
       <div class="flex items-end justify-between gap-4">
         <div class="w-full">
           <label class="block font-semibold mb-1">Answer Options</label>
           <div id="options-container" class="space-y-2">
-            <div class="flex gap-2">
+            <div class="flex gap-2 items-center">
               <input type="text" placeholder="Option 1" class="flex-1 p-2 border border-gray-300 rounded-md">
               <input type="file" accept="image/*" class="w-28 text-sm">
             </div>
-            <div class="flex gap-2">
+            <div class="flex gap-2 items-center">
               <input type="text" placeholder="Option 2" class="flex-1 p-2 border border-gray-300 rounded-md">
               <input type="file" accept="image/*" class="w-28 text-sm">
             </div>
           </div>
+          <button type="button" onclick="addOption()" class="text-sm text-green-600 hover:underline mt-2">+ Add option</button>
         </div>
         <div class="flex flex-col gap-2">
           <label class="block font-semibold mb-1">Max vote</label>
           <input type="number" min="1" placeholder="e.g., 1" class="p-2 border border-gray-300 rounded-md w-24">
-          <button type="button" class="text-sm text-green-600 hover:underline mt-2">+ Add option</button>
         </div>
       </div>
 
@@ -70,15 +74,14 @@
           <label class="block font-semibold mb-1">Close poll on a specific date</label>
           <input type="date" class="p-2 border border-gray-300 rounded-md">
           <div class="mt-4">
-  <label class="block font-semibold mb-1">Results visibility</label>
-  <select class="p-2 border border-gray-300 rounded-md w-full">
-    <option>Always public</option>
-    <option>Public after end date</option>
-    <option>Public after vote</option>
-    <option>Not public</option>
-  </select>
-</div>
-
+            <label class="block font-semibold mb-1">Results visibility</label>
+            <select class="p-2 border border-gray-300 rounded-md w-full">
+              <option>Always public</option>
+              <option>Public after end date</option>
+              <option>Public after vote</option>
+              <option>Not public</option>
+            </select>
+          </div>
         </div>
       </div>
 
@@ -87,6 +90,19 @@
       </div>
     </form>
   </div>
+  <script>
+    function addOption() {
+      const container = document.getElementById("options-container");
+      const optionCount = container.querySelectorAll("input[type='text']").length + 1;
+      const wrapper = document.createElement("div");
+      wrapper.className = "flex gap-2 items-center mt-2";
+      wrapper.innerHTML = `
+        <input type="text" placeholder="Option ${optionCount}" class="flex-1 p-2 border border-gray-300 rounded-md">
+        <input type="file" accept="image/*" class="w-28 text-sm">
+        <button type="button" class="remove-btn" onclick="this.parentElement.remove()">&#10005;</button>
+      `;
+      container.appendChild(wrapper);
+    }
+  </script>
 </body>
 </html>
-
