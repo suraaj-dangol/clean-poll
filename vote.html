@@ -8,7 +8,6 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
   <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/lucide@latest"></script>
   <style>
     .social-icons a {
@@ -43,11 +42,11 @@
       <input id="voterName" class="w-full border border-gray-300 rounded p-2" type="text" placeholder="Enter your name">
     </div>
     <button id="submitVote" class="bg-[#4F7942] text-white font-semibold px-4 py-2 rounded hover:bg-[#3e6134] hidden">Submit Vote</button>
-
     <div id="thankYou" class="mt-6 hidden text-center font-semibold text-green-700">Thank you for voting!</div>
 
     <div id="shareSection" class="mt-6 hidden text-center">
       <p class="font-semibold mb-2">Share this poll:</p>
+      <input type="text" readonly value="" id="pollLink" class="w-full p-2 mb-2 border rounded text-center" onclick="this.select();document.execCommand('copy')">
       <div class="flex justify-center gap-4 social-icons">
         <a href="#" onclick="shareTo('facebook')" class="relative"><i class="lucide lucide-facebook"></i><span class="icon-label">Facebook</span></a>
         <a href="#" onclick="shareTo('x')" class="relative"><i class="lucide lucide-twitter"></i><span class="icon-label">X</span></a>
@@ -58,15 +57,19 @@
     </div>
 
     <div id="resultsSection" class="mt-6 hidden">
-      <canvas id="resultsChart"></canvas>
+      <h2 class="text-xl font-semibold mb-2">Live Results</h2>
+      <ul id="resultsList" class="space-y-2"></ul>
+      <p id="totalVotes" class="mt-2 text-sm italic"></p>
     </div>
+
     <div id="commentBox" class="mt-6 hidden">
       <label class="block text-sm font-medium">Leave a comment:</label>
       <textarea id="commentInput" class="w-full border p-2 rounded mt-2"></textarea>
       <button onclick="submitComment()" class="mt-2 bg-[#4F7942] text-white px-4 py-1 rounded hover:bg-[#3e6134]">Submit Comment</button>
     </div>
+
     <div id="feedbackWall" class="mt-6 hidden">
-      <h2 class="text-xl font-semibold mb-2">Feedback</h2>
+      <h2 class="text-xl font-semibold mb-2">Public Comments</h2>
       <ul id="commentsList" class="space-y-2"></ul>
     </div>
   </div>
@@ -85,7 +88,7 @@
 
     const urlParams = new URLSearchParams(window.location.search);
     const pollId = urlParams.get('poll');
-    let pollData;
+    document.getElementById("pollLink").value = window.location.href;
 
     const pollTitle = document.getElementById('poll-title');
     const voteForm = document.getElementById('vote-form');
@@ -94,11 +97,9 @@
 
     db.collection("polls").doc(pollId).get().then(doc => {
       if (!doc.exists) return pollTitle.textContent = "Poll not found.";
-      pollData = doc.data();
+      const pollData = doc.data();
       const now = new Date();
-      const isCreator = false;
-      const showResults =
-        pollData.resultVisibility === 'always' ||
+      const showResults = pollData.resultVisibility === 'always' ||
         (pollData.resultVisibility === 'afterEnd' && pollData.expiresAt && now > new Date(pollData.expiresAt));
 
       pollTitle.textContent = pollData.question;
@@ -116,17 +117,17 @@
         input.onclick = () => handleSelect(input);
 
         const label = document.createElement("label");
-        label.textContent = `${opt.text} (${opt.votes} votes)`;
-
+        label.textContent = opt.text;
         wrapper.appendChild(input);
         wrapper.appendChild(label);
+
         voteForm.appendChild(wrapper);
       });
 
       submitBtn.classList.remove("hidden");
       document.getElementById("shareSection").classList.remove("hidden");
 
-      if (showResults) renderChart();
+      if (showResults) renderResults(pollData.options);
       if (pollData.allowComments) {
         document.getElementById("commentBox").classList.remove("hidden");
         loadComments();
@@ -134,70 +135,47 @@
     });
 
     function handleSelect(input) {
-      const max = pollData.maxVote;
-      if (pollData.maxVote === 1) return;
       const checkboxes = [...document.querySelectorAll('input[type="checkbox"]')];
       const selectedCount = checkboxes.filter(cb => cb.checked).length;
+      const max = pollData.maxVote;
       if (selectedCount > max) {
         input.checked = false;
         alert(`You can select up to ${max} options.`);
       }
     }
 
+    function renderResults(options) {
+      const section = document.getElementById("resultsSection");
+      section.classList.remove("hidden");
+      const list = document.getElementById("resultsList");
+      list.innerHTML = "";
+      let total = 0;
+      options.forEach(opt => total += opt.votes);
+      options.forEach(opt => {
+        const li = document.createElement("li");
+        li.className = "p-2 border rounded bg-white";
+        const percent = total > 0 ? ((opt.votes / total) * 100).toFixed(1) : 0;
+        li.textContent = `${opt.text} - ${opt.votes} votes (${percent}%)`;
+        list.appendChild(li);
+      });
+      document.getElementById("totalVotes").textContent = `Total Voters: ${total}`;
+    }
+
     submitBtn.onclick = async () => {
       const name = document.getElementById("voterName")?.value;
       if (pollData.requireName && !name) return alert("Name is required.");
-
       const selectedIndexes = [...voteForm.querySelectorAll('input:checked')].map(input => parseInt(input.value));
       if (!selectedIndexes.length) return alert("Please select an option.");
-
       const docRef = db.collection("polls").doc(pollId);
       const doc = await docRef.get();
       const data = doc.data();
       const options = data.options;
-
       selectedIndexes.forEach(i => options[i].votes++);
       await docRef.update({ options });
-
       thankYou.classList.remove("hidden");
       voteForm.classList.add("hidden");
       submitBtn.classList.add("hidden");
-
-      if (["always", "afterVote"].includes(pollData.resultVisibility)) renderChart();
-    };
-
-    function renderChart() {
-      document.getElementById("resultsSection").classList.remove("hidden");
-      db.collection("polls").doc(pollId).get().then(doc => {
-        const options = doc.data().options;
-        const labels = options.map(o => o.text);
-        const votes = options.map(o => o.votes);
-
-        new Chart(document.getElementById("resultsChart"), {
-          type: 'bar',
-          data: {
-            labels,
-            datasets: [{
-              label: "Votes",
-              data: votes,
-              backgroundColor: '#4F7942'
-            }]
-          },
-          options: {
-            plugins: {
-              tooltip: {
-                callbacks: {
-                  label: function(context) {
-                    const total = votes.reduce((a, b) => a + b, 0);
-                    const percentage = ((context.raw / total) * 100).toFixed(1);
-                    return `${context.raw} votes (${percentage}%)`;
-                  }
-                }
-              }
-            }
-          }
-        });
-      });
+      if (["always", "afterVote"].includes(pollData.resultVisibility)) renderResults(options);
     }
 
     function shareTo(platform) {
@@ -228,7 +206,6 @@
       const wall = document.getElementById("feedbackWall");
       list.innerHTML = "";
       wall.classList.remove("hidden");
-
       db.collection("polls").doc(pollId).collection("comments").orderBy("createdAt", "desc").get().then(snapshot => {
         snapshot.forEach(doc => {
           const li = document.createElement("li");
