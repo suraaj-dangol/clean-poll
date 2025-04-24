@@ -1,3 +1,4 @@
+<!-- Full Create Poll Page with Settings Restored -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -112,6 +113,37 @@
         </div>
       </div>
 
+      <div class="border-t pt-6">
+        <h2 class="text-xl font-semibold mb-2">Settings</h2>
+        <div class="flex flex-wrap gap-6">
+          <label class="flex items-center gap-2">
+            <input type="checkbox" class="accent-[#4F7942]"> Allow selection of multiple options
+          </label>
+          <label class="flex items-center gap-2">
+            <input type="checkbox" class="accent-[#4F7942]"> Require participant names
+          </label>
+          <label class="flex items-center gap-2">
+            <input type="checkbox" class="accent-[#4F7942]"> One vote per device
+          </label>
+          <label class="flex items-center gap-2">
+            <input type="checkbox" class="accent-[#4F7942]"> Allow comments
+          </label>
+        </div>
+        <div class="mt-4">
+          <label class="block font-semibold mb-1">Close poll on a specific date</label>
+          <input type="date" class="p-2 border border-gray-300 rounded-md">
+          <div class="mt-4">
+            <label class="block font-semibold mb-1">Results visibility</label>
+            <select class="p-2 border border-gray-300 rounded-md w-full">
+              <option>Always public</option>
+              <option>Public after end date</option>
+              <option>Public after vote</option>
+              <option>Not public</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
       <div class="text-center mt-8 flex justify-center gap-4">
         <button type="button" onclick="showPreview()" class="bg-white text-[#4F7942] font-semibold px-6 py-3 border border-[#4F7942] rounded-lg hover:bg-gray-50 transition">Preview Poll</button>
         <button type="submit" class="bg-[#4F7942] text-white font-semibold px-6 py-3 rounded-lg hover:bg-[#3e6134] transition">Create Poll</button>
@@ -165,7 +197,6 @@
     }
   </script>
 
-  <!-- Firebase Setup -->
   <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.6.1/firebase-firestore-compat.js"></script>
   <script>
